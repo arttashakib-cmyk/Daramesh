@@ -53,7 +53,8 @@ jobs:
       - name: Show errors
         if: failure()
         working-directory: ${{ env.PROJECT_DIR }}
-        run: grep -n -E "^e: |What went wrong" -A4 build.log | head -80
+        run: |
+          grep -n -E "^e:|What went wrong" -A4 build.log | head -80
 
       - name: Upload log
         if: always()
