@@ -9,11 +9,19 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Unzip source
         run: |
           set -e
-          ZIP=$(ls -t *.zip 2>/dev/null | head -n1 || true)
+          ZIP=""
+          BEST=0
+          for f in *.zip; do
+            [ -e "$f" ] || continue
+            T=$(git log -1 --format=%ct -- "$f")
+            if [ "${T:-0}" -ge "$BEST" ]; then BEST=${T:-0}; ZIP="$f"; fi
+          done
           if [ -n "$ZIP" ]; then
             echo "Using zip: $ZIP"
             rm -rf _src && mkdir _src
