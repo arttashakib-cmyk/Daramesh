@@ -1,52 +1,21 @@
-name: Build APK
-
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Unzip source
-        run: |
-          set -e
-          ZIP=$(ls -t *.zip 2>/dev/null | head -n1 || true)
-          if [ -n "$ZIP" ]; then
-            echo "Using zip: $ZIP"
-            rm -rf _src && mkdir _src
-            unzip -q -o "$ZIP" -d _src
-            SRC=_src
-          else
-            echo "No zip found, using repo files"
-            SRC=.
-          fi
-          SETTINGS=$(find "$SRC" -name settings.gradle.kts -not -path "*/.git/*" | head -n1)
-          if [ -z "$SETTINGS" ]; then echo "settings.gradle.kts not found"; exit 1; fi
-          echo "PROJECT_DIR=$(dirname "$SETTINGS")" >> "$GITHUB_ENV"
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.7"
-
-      - name: Prepare Android SDK
-        run: |
-          echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-
-      - name: Show version
-        run: grep -E "versionCode|versionName" "$PROJECT_DIR/app/build.gradle.kts"
-
       - name: Build release APK
         working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          gradle :app:assembleRelease --no-daemon --console=plain 2>&1 | tee build.log
+
+      - name: Show errors
+        if: failure()
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: grep -n -E "^e: |What went wrong" -A4 build.log | head -80
+
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ${{ env.PROJECT_DIR }}/build.log
+          if-no-files-found: ignore
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
