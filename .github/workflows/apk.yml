@@ -20,7 +20,7 @@ jobs:
           for f in *.zip; do
             [ -e "$f" ] || continue
             T=$(git log -1 --format=%ct -- "$f")
-            if [ "${T:-0}" -ge "$BEST" ]; then BEST=${T:-0}; ZIP="$f"; fi
+            if [ "${T:-0}" -ge "\( BEST" ]; then BEST= \){T:-0}; ZIP="$f"; fi
           done
           if [ -n "$ZIP" ]; then
             echo "Using zip: $ZIP"
@@ -40,14 +40,17 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # مهم: AGP 8.9.2 نیاز به Gradle >= 8.11.1 دارد
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: "8.11.1"
 
       - name: Prepare Android SDK
         run: |
           echo "sdk.dir=$ANDROID_HOME" > "$PROJECT_DIR/local.properties"
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          # نصب SDK 36 برای compileSdk پروژه
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null || true
 
       - name: Show version
         run: grep -E "versionCode|versionName" "$PROJECT_DIR/app/build.gradle.kts"
